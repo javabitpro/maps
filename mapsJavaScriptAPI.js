@@ -7,13 +7,13 @@ var bypass = function (googleAPIcomponentJS, googleAPIcomponentURL) {
     if (googleAPIcomponentURL.toString().indexOf("common.js") != -1) {
         var removeFailureAlert = function(googleAPIcomponentURL) {
             sendRequestThroughCROSproxy(googleAPIcomponentURL,(responseText)=>{
-                var anotherAppendChildToHeadJSRegex = /.src=(.*?);\(void 0\)/;
+                var anotherAppendChildToHeadJSRegex = /\.head;.*src=(.*?);/;
                 var anotherAppendChildToHeadJS = responseText.match(anotherAppendChildToHeadJSRegex);
                 var googleAPItrustedScriptURL = anotherAppendChildToHeadJS[1];
                 var bypassQuotaServicePayload = anotherAppendChildToHeadJS[0].replace(googleAPItrustedScriptURL, googleAPItrustedScriptURL+'.toString().indexOf("QuotaService.RecordEvent")!=-1?"":'+googleAPItrustedScriptURL);
 
                 var script = document.createElement('script');
-                script.innerHTML = responseText.replace(new RegExp(/;if.*Failure.*?\}/), ";").replace(new RegExp(/(\|\|\(\(\)=>\{\}\);.*\?.*?\()/), "$1true||").replace(anotherAppendChildToHeadJSRegex, bypassQuotaServicePayload);
+                script.innerHTML = responseText.replace(new RegExp(/;if\(![a-z]+?\).*Failure.*?\}/), ";").replace(new RegExp(/(\|\|\(\(\)=>\{\}\);\S+\?\S+?\()/), "$1true||").replace(anotherAppendChildToHeadJSRegex, bypassQuotaServicePayload);
                 document.head.appendChild(script);
             });
         }
@@ -21,13 +21,17 @@ var bypass = function (googleAPIcomponentJS, googleAPIcomponentURL) {
     } else if(googleAPIcomponentURL.toString().indexOf("map.js") != -1){
         var hijackMapJS = function(googleAPIcomponentURL) {
             sendRequestThroughCROSproxy(googleAPIcomponentURL,(responseText)=>{
-                var unknownStatusRegex = /const .*?=(.*\.getStatus\(\));/;
-                var unknownStatusMatch = responseText.match(unknownStatusRegex);
-                var unknownStatus=unknownStatusMatch[1];
-                var replaceUnknownStatusPayload = unknownStatusMatch[0].replace(unknownStatus, '1');
-                
                 var script = document.createElement('script');
-                script.innerHTML = responseText.replace(unknownStatusRegex, replaceUnknownStatusPayload);
+
+                var unknownStatusRegex = /const\s+(\w+)\s*=.*?;/g;
+                var unknownStatusMatch = responseText.match(unknownStatusRegex);
+      
+                for(let i=0;i<unknownStatusMatch.length;i++){
+                    if(unknownStatusMatch[i].indexOf("getStatus")!=-1){
+                        script.innerHTML = responseText.replace(unknownStatusMatch[i], unknownStatusMatch[i].replace(/=.*/, '=1;'));
+                        break;
+                    }
+                }
                 document.head.appendChild(script);
             });
         }
